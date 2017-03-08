@@ -1,4 +1,4 @@
-package ingestion
+package performancetests
  
 import io.gatling.core.Predef._
 import io.gatling.http.Predef._
