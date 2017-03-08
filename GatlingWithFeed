@@ -1,0 +1,48 @@
+package performancetest
+
+import io.gatling.core.Predef._
+import io.gatling.http.Predef._
+import io.gatling.jdbc.Predef._
+import io.gatling.core.Predef.bootstrap._
+import io.gatling.http.Headers.Names._
+import scala.concurrent.duration._
+import bootstrap._
+import assertions._
+import com.typesafe.config.{Config, ConfigFactory}
+import java.io.{FileReader, BufferedReader}
+
+class BasicFeedRequestSimulation extends Simulation {
+
+  val httpProtocol = http
+    .baseURL("http://" + Host + ":" + Port)
+    .acceptCharsetHeader("ISO-8859-1,utf-8;q=0.7,*;q=0.7")
+    .acceptHeader("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+
+  // Load performance test config variables. Use environment variables to overwrite config set values.
+  val perfTestUserCount = config.getInt("test.gatling.users")
+  var perfTestRampCount = config.getInt("test.gatling.ramp")
+  var perfTestRepeatCount = config.getInt("test.gatling.repeatCount")
+  val perfTestScenario = config.getString("test.scenario")
+  val perfTestDuration = config.getInt("test.gatling.duration")
+
+  val testScenario = scenario("Sample Test")
+    .during(Duration(perfTestDuration, "seconds"))
+    {
+      feed(csv("../data/IPAddressData.csv").random)
+      .exec(
+        http(" Sample Request")
+          .post("/verify")
+          .headers(SampleHeader)
+          .header("X-Remote-Addr", "${ipaddress}")
+          .check(status.is(200))
+      )
+    }
+
+  // Execute the load test using performance parameters set using config file
+  setUp(thriftScenario.inject(ramp(perfTestUserCount users) over (perfTestRampCount seconds)))
+    .protocols(httpProtocol)
+    .assertions(
+      // global.responseTime.max.between(0, 2000),
+      global.successfulRequests.percent.greaterThan(95)
+    )
+}
